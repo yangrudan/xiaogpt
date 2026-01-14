@@ -109,6 +109,17 @@ def main():
     parser.add_argument(
         "--fish_voice_key", dest="fish_voice_key", help="fish voice key"
     )
+    # Alzheimer adapter arguments
+    parser.add_argument(
+        "--alz_base_url",
+        dest="alz_base_url",
+        help="Alzheimer backend base URL (e.g., https://alzheimer.example.com)",
+    )
+    parser.add_argument(
+        "--alz_api_token",
+        dest="alz_api_token",
+        help="Alzheimer backend API token for authentication",
+    )
     parser.add_argument(
         "--verbose",
         "-v",

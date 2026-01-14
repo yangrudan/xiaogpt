@@ -1,0 +1,20 @@
+# Example configuration for using xiaogpt with Alzheimer adapter
+# Copy to xiao_config.yaml and customize as needed
+
+# Basic xiaogpt configuration
+hardware: "LX06"
+account: "your_xiaomi_account"
+password: "your_xiaomi_password"
+use_chatgpt_api: true
+openai_key: "your_openai_key"
+
+# Alzheimer adapter configuration
+# Set the base URL to enable the adapter
+alz_base_url: "https://alzheimer.example.com"
+# Optional: Set API token for authentication
+alz_api_token: "your_alzheimer_api_token"
+
+# Other optional settings
+mute_xiaoai: true
+stream: true
+verbose: 1
