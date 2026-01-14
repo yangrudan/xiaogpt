@@ -199,6 +199,26 @@ ChatGLM [文档](http://open.bigmodel.cn/doc/api#chatglm_130b)
 | api_base              | 如果需要替换默认的 api，或者使用 Azure OpenAI 服务                                                            | 例如：`https://abc-def.openai.azure.com/`                                                                 |
 | volc_access_key       | 火山引擎的 access key 请在[这里](https://console.volcengine.com/iam/keymanage/)获取                        |                                                                                                           |                                                                  |
 | volc_secret_key       | 火山引擎的 secret key 请在[这里](https://console.volcengine.com/iam/keymanage/)获取                        |                                                                                                           |
+| alz_base_url          | Alzheimer 后端基础 URL，用于启用 Alzheimer 适配器                                                           | 空（适配器默认禁用）                                                                                          | 例如：`https://alzheimer.example.com`                            |
+| alz_api_token         | Alzheimer 后端 API 认证 token（可选）                                                                      | 空                                                                                                        |                                                                  |
+
+## Alzheimer 适配器
+
+xiaogpt 支持将语音输入转发到 [Alzheimer](https://github.com/yangrudan/alzheimer) 后端系统。详细说明请参考 [Alzheimer 适配器文档](ALZHEIMER_ADAPTER.md)。
+
+快速开始：
+
+```bash
+# 通过环境变量启用
+export ALZ_BASE_URL="https://alzheimer.example.com"
+export ALZ_API_TOKEN="your_token"  # 可选
+xiaogpt --hardware LX06 --use_chatgpt_api
+
+# 或通过配置文件
+# 在 xiao_config.yaml 中添加：
+# alz_base_url: "https://alzheimer.example.com"
+# alz_api_token: "your_token"
+```
 
 ## 注意
 

@@ -88,6 +88,9 @@ class Config:
     ] = "mi"
     tts_options: dict[str, Any] = field(default_factory=dict)
     gpt_options: dict[str, Any] = field(default_factory=dict)
+    # Alzheimer adapter configuration
+    alz_base_url: str = os.getenv("ALZ_BASE_URL", "")
+    alz_api_token: str = os.getenv("ALZ_API_TOKEN", "")
 
     def __post_init__(self) -> None:
         if self.proxy:

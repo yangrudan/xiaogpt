@@ -26,6 +26,7 @@ from xiaogpt.config import (
 from xiaogpt.tts import TTS, MiTTS, TetosFileTTS
 from xiaogpt.tts.live import TetosLiveTTS
 from xiaogpt.utils import detect_language, parse_cookie_string
+from xiaogpt.adapters.alzheimer_adapter import AlzheimerAdapter
 
 EOF = object()
 
@@ -49,6 +50,11 @@ class MiGPT:
         self.log.addHandler(RichHandler())
         self.log.debug(config)
         self.mi_session = ClientSession()
+        # Initialize Alzheimer adapter
+        self.alzheimer_adapter = AlzheimerAdapter(
+            base_url=config.alz_base_url,
+            api_token=config.alz_api_token,
+        )
 
     async def close(self):
         await self.mi_session.close()
@@ -393,6 +399,18 @@ class MiGPT:
             # llama3 is not good at Chinese, so we need to add prompt in it.
             if self.config.bot == "llama":
                 query = f"你是一个基于 llama3 的智能助手，请你跟我对话时，一定使用中文，不要夹杂一些英文单词，甚至英语短语也不能随意使用，但类似于 llama3 这样的专属名词除外，问题是：{query}"
+
+            # Forward to Alzheimer adapter if enabled
+            if self.alzheimer_adapter.enabled:
+                cookie_dict = self.cookie_jar.get_dict() if self.cookie_jar else {}
+                user_id = cookie_dict.get("userId", None)
+                asyncio.create_task(
+                    self.alzheimer_adapter.forward_text_as_intent(
+                        text=query,
+                        device_id=self.device_id,
+                        user_id=user_id,
+                    )
+                )
 
             print("-" * 20)
             print("问题：" + query + "？")
