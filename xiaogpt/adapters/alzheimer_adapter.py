@@ -10,6 +10,7 @@ import logging
 import os
 from typing import Any
 
+import aiohttp
 from aiohttp import ClientSession, ClientTimeout
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,12 @@ logger = logging.getLogger(__name__)
 class AlzheimerAdapter:
     """Adapter for forwarding xiaogpt data to Alzheimer backend."""
 
-    def __init__(self, base_url: str | None = None, api_token: str | None = None):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_token: str | None = None,
+        session: ClientSession | None = None,
+    ):
         """Initialize the Alzheimer adapter.
 
         Args:
@@ -26,10 +32,13 @@ class AlzheimerAdapter:
                      Defaults to ALZ_BASE_URL environment variable.
             api_token: Optional API token for authentication.
                       Defaults to ALZ_API_TOKEN environment variable.
+            session: Optional aiohttp ClientSession to reuse.
+                    If not provided, a new session will be created per request.
         """
         self.base_url = base_url or os.getenv("ALZ_BASE_URL", "")
         self.api_token = api_token or os.getenv("ALZ_API_TOKEN", "")
         self.enabled = bool(self.base_url)
+        self._session = session
         
         if self.enabled:
             logger.info(f"Alzheimer adapter enabled with base_url: {self.base_url}")
@@ -80,8 +89,9 @@ class AlzheimerAdapter:
 
         try:
             timeout = ClientTimeout(total=10)
-            async with ClientSession() as session:
-                async with session.post(
+            # Use provided session or create a new one
+            if self._session:
+                async with self._session.post(
                     webhook_url,
                     json=payload,
                     headers=headers,
@@ -93,8 +103,28 @@ class AlzheimerAdapter:
                         f"Successfully forwarded to Alzheimer backend: {text[:50]}..."
                     )
                     return result
+            else:
+                async with ClientSession() as session:
+                    async with session.post(
+                        webhook_url,
+                        json=payload,
+                        headers=headers,
+                        timeout=timeout,
+                    ) as response:
+                        response.raise_for_status()
+                        result = await response.json()
+                        logger.info(
+                            f"Successfully forwarded to Alzheimer backend: {text[:50]}..."
+                        )
+                        return result
+        except aiohttp.ClientError as e:
+            logger.warning(
+                f"Failed to forward to Alzheimer backend (client error): {str(e)}"
+            )
+            return None
         except Exception as e:
             logger.warning(
-                f"Failed to forward to Alzheimer backend: {str(e)}", exc_info=True
+                f"Failed to forward to Alzheimer backend (unexpected error): {str(e)}",
+                exc_info=True
             )
             return None

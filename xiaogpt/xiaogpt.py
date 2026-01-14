@@ -50,13 +50,23 @@ class MiGPT:
         self.log.addHandler(RichHandler())
         self.log.debug(config)
         self.mi_session = ClientSession()
-        # Initialize Alzheimer adapter
+        # Initialize Alzheimer adapter with shared session
         self.alzheimer_adapter = AlzheimerAdapter(
             base_url=config.alz_base_url,
             api_token=config.alz_api_token,
+            session=self.mi_session,
         )
+        # Track forwarding tasks for cleanup
+        self._forwarding_tasks = set()
 
     async def close(self):
+        # Cancel any pending forwarding tasks
+        for task in self._forwarding_tasks:
+            if not task.done():
+                task.cancel()
+        # Wait for all tasks to complete
+        if self._forwarding_tasks:
+            await asyncio.gather(*self._forwarding_tasks, return_exceptions=True)
         await self.mi_session.close()
 
     async def poll_latest_ask(self):
@@ -404,13 +414,16 @@ class MiGPT:
             if self.alzheimer_adapter.enabled:
                 cookie_dict = self.cookie_jar.get_dict() if self.cookie_jar else {}
                 user_id = cookie_dict.get("userId", None)
-                asyncio.create_task(
+                task = asyncio.create_task(
                     self.alzheimer_adapter.forward_text_as_intent(
                         text=query,
                         device_id=self.device_id,
                         user_id=user_id,
                     )
                 )
+                # Store task reference and auto-remove when done
+                self._forwarding_tasks.add(task)
+                task.add_done_callback(self._forwarding_tasks.discard)
 
             print("-" * 20)
             print("问题：" + query + "？")
