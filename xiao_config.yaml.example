@@ -41,6 +41,17 @@ stream: true
 #   model: gpt-4o-mini
 gpt_options: {}
 
+# ===== MoCA 认知测试设置 =====
+# 启用 MoCA 认知测试功能
+enable_moca_test: false
+# MoCA 测试触发关键词
+moca_test_keyword: "健康每一天"
+# MoCA 测试的默认提示词
+moca_test_prompt: "你是一个专业的认知评估助手，请基于蒙特利尔认知评估量表(MoCA)进行阿兹海默症筛查测试。请逐步引导用户完成各项认知测试，包括视空间与执行功能、命名、记忆、注意力、语言、抽象思维、延迟回忆和定向力等测试项目。"
+# MoCA 测试历史保存目录
+moca_history_dir: "moca_history"
+
+
 # ----- OpenAI -----
 # OpenAI key
 openai_key: ""

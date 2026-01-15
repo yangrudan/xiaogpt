@@ -139,3 +139,5 @@ config/
 nohup.out
 xiao_config.yaml
 .DS_Store
+# MoCA test history files
+moca_history/

@@ -49,9 +49,71 @@ class MiGPT:
         self.log.addHandler(RichHandler())
         self.log.debug(config)
         self.mi_session = ClientSession()
+        
+        # MoCA test tracking
+        self.in_moca_test = False
+        self.moca_chat_history = []
+        self.moca_session_start_time = None
 
     async def close(self):
         await self.mi_session.close()
+    
+    def _save_moca_history(self):
+        """Save MoCA chat history to a local JSON file"""
+        if not self.config.enable_moca_test or not self.moca_chat_history:
+            return
+        
+        # Create history directory if it doesn't exist
+        history_dir = Path(self.config.moca_history_dir)
+        history_dir.mkdir(exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = history_dir / f"moca_test_{timestamp}.json"
+        
+        # Prepare data to save
+        session_data = {
+            "session_start_time": self.moca_session_start_time,
+            "session_end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "test_type": "MoCA阿兹海默症认知评估",
+            "trigger_keyword": self.config.moca_test_keyword,
+            "conversation_history": self.moca_chat_history,
+            "total_exchanges": len(self.moca_chat_history)
+        }
+        
+        # Save to file
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(session_data, f, ensure_ascii=False, indent=2)
+        
+        self.log.info(f"MoCA测试历史已保存到: {filename}")
+        print(f"[green]MoCA测试历史已保存到: {filename}[/]")
+    
+    def _start_moca_test(self):
+        """Start a new MoCA test session"""
+        self.in_moca_test = True
+        self.moca_chat_history = []
+        self.moca_session_start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.log.info("开始MoCA认知测试会话")
+    
+    def _end_moca_test(self):
+        """End the current MoCA test session and save history"""
+        if self.in_moca_test:
+            self._save_moca_history()
+            self.in_moca_test = False
+            self.moca_chat_history = []
+            self.moca_session_start_time = None
+            self.log.info("结束MoCA认知测试会话")
+    
+    def _record_moca_exchange(self, query: str, response: str):
+        """Record a question-answer exchange in MoCA test"""
+        if self.in_moca_test:
+            exchange = {
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "user_query": query,
+                "bot_response": response
+            }
+            self.moca_chat_history.append(exchange)
+
 
     async def poll_latest_ask(self):
         async with ClientSession() as session:
@@ -360,11 +422,26 @@ class MiGPT:
             f"Running xiaogpt now, 用 [green]{'/'.join(self.config.keyword)}[/] 开头来提问"
         )
         print(f"或用 [green]{self.config.start_conversation}[/] 开始持续对话")
+        if self.config.enable_moca_test:
+            print(f"或用 [green]{self.config.moca_test_keyword}[/] 开始MoCA认知测试")
         while True:
             self.polling_event.set()
             new_record = await self.last_record.get()
             self.polling_event.clear()  # stop polling when processing the question
             query = new_record.get("query", "").strip()
+            
+            # Handle MoCA test keyword
+            if self.config.enable_moca_test and query == self.config.moca_test_keyword:
+                if not self.in_moca_test:
+                    print("开始MoCA认知测试")
+                    self._start_moca_test()
+                    self.in_conversation = True
+                    # Change prompt to MoCA test mode
+                    self.chatbot.change_prompt(self.config.moca_test_prompt)
+                    await self.wakeup_xiaoai()
+                await self.stop_if_xiaoai_is_playing()
+                continue
+            
             if query == self.config.start_conversation:
                 if not self.in_conversation:
                     print("开始对话")
@@ -376,6 +453,9 @@ class MiGPT:
                 if self.in_conversation:
                     print("结束对话")
                     self.in_conversation = False
+                    # End MoCA test if active
+                    if self.in_moca_test:
+                        self._end_moca_test()
                 await self.stop_if_xiaoai_is_playing()
                 continue
 
@@ -390,6 +470,8 @@ class MiGPT:
 
             # drop key words
             query = re.sub(rf"^({'|'.join(self.config.keyword)})", "", query)
+            # Save original query for MoCA recording
+            original_query = query
             # llama3 is not good at Chinese, so we need to add prompt in it.
             if self.config.bot == "llama":
                 query = f"你是一个基于 llama3 的智能助手，请你跟我对话时，一定使用中文，不要夹杂一些英文单词，甚至英语短语也不能随意使用，但类似于 llama3 这样的专属名词除外，问题是：{query}"
@@ -415,7 +497,7 @@ class MiGPT:
                 print("小爱没回")
             print(f"以下是 {self.chatbot.name} 的回答：", end="")
             try:
-                await self.speak(self.ask_gpt(query))
+                await self.speak(self.ask_gpt(query), original_query)
             except Exception as e:
                 print(f"{self.chatbot.name} 回答出错 {str(e)}")
             else:
@@ -424,16 +506,26 @@ class MiGPT:
                 print(f"继续对话，或用 `{self.config.end_conversation}` 结束对话")
                 await self.wakeup_xiaoai()
 
-    async def speak(self, text_stream: AsyncIterator[str]) -> None:
+    async def speak(self, text_stream: AsyncIterator[str], query: str = "") -> None:
         first_chunk = await text_stream.__anext__()
         # Detect the language from the first chunk
         # Add suffix '-' because tetos expects it to exist when selecting voices
         # however, the nation code is never used.
         lang = detect_language(first_chunk) + "-"
+        
+        # Collect full response for MoCA test
+        full_response = first_chunk if self.in_moca_test else ""
 
         async def gen():  # reconstruct the generator
+            nonlocal full_response
             yield first_chunk
             async for text in text_stream:
+                if self.in_moca_test:
+                    full_response += text
                 yield text
 
         await self.tts.synthesize(lang, gen())
+        
+        # Record the exchange in MoCA history
+        if self.in_moca_test and query:
+            self._record_moca_exchange(query, full_response)

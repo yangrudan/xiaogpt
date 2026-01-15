@@ -40,6 +40,8 @@ DEFAULT_COMMAND = ("5-1", "5-5")
 KEY_WORD = ("帮我", "请")
 CHANGE_PROMPT_KEY_WORD = ("更改提示词",)
 PROMPT = "以下请用 300 字以内回答，请只回答文字不要带链接"
+MOCA_TEST_KEYWORD = "健康每一天"
+MOCA_TEST_PROMPT = "你是一个专业的认知评估助手，请基于蒙特利尔认知评估量表(MoCA)进行阿兹海默症筛查测试。请逐步引导用户完成各项认知测试，包括视空间与执行功能、命名、记忆、注意力、语言、抽象思维、延迟回忆和定向力等测试项目。"
 # simulate_xiaoai_question
 MI_ASK_SIMULATE_DATA = {
     "code": 0,
@@ -88,6 +90,10 @@ class Config:
     ] = "mi"
     tts_options: dict[str, Any] = field(default_factory=dict)
     gpt_options: dict[str, Any] = field(default_factory=dict)
+    moca_test_keyword: str = MOCA_TEST_KEYWORD
+    moca_test_prompt: str = MOCA_TEST_PROMPT
+    enable_moca_test: bool = False
+    moca_history_dir: str = "moca_history"
 
     def __post_init__(self) -> None:
         if self.proxy:
