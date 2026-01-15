@@ -438,8 +438,23 @@ class MiGPT:
                     self.in_conversation = True
                     # Change prompt to MoCA test mode
                     self.chatbot.change_prompt(self.config.moca_test_prompt)
+                    await self.stop_if_xiaoai_is_playing()
+                    # Send initial MoCA greeting
+                    await self.do_tts(f"正在启动MoCA认知评估，请耐心等待")
+                    print("-" * 20)
+                    print("问题：开始MoCA认知测试")
+                    initial_query = "你好，我想开始进行MoCA认知评估测试。请向我介绍测试流程并开始第一项评估。"
+                    print(f"以下是 {self.chatbot.name} 的回答：", end="")
+                    try:
+                        await self.speak(self.ask_gpt(initial_query), initial_query)
+                    except Exception as e:
+                        print(f"{self.chatbot.name} 回答出错 {str(e)}")
+                    else:
+                        print("回答完毕")
+                        print(f"继续对话，或用 `{self.config.end_conversation}` 结束对话")
                     await self.wakeup_xiaoai()
-                await self.stop_if_xiaoai_is_playing()
+                else:
+                    await self.stop_if_xiaoai_is_playing()
                 continue
             
             if query == self.config.start_conversation:
