@@ -513,19 +513,20 @@ class MiGPT:
         # however, the nation code is never used.
         lang = detect_language(first_chunk) + "-"
         
-        # Collect full response for MoCA test
-        full_response = first_chunk if self.in_moca_test else ""
+        # Collect full response for MoCA test using list for efficiency
+        response_chunks = [first_chunk] if self.in_moca_test else None
 
         async def gen():  # reconstruct the generator
-            nonlocal full_response
+            nonlocal response_chunks
             yield first_chunk
             async for text in text_stream:
-                if self.in_moca_test:
-                    full_response += text
+                if self.in_moca_test and response_chunks is not None:
+                    response_chunks.append(text)
                 yield text
 
         await self.tts.synthesize(lang, gen())
         
         # Record the exchange in MoCA history
-        if self.in_moca_test and query:
+        if self.in_moca_test and query and response_chunks:
+            full_response = "".join(response_chunks)
             self._record_moca_exchange(query, full_response)
