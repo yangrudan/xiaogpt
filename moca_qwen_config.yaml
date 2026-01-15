@@ -1,0 +1,58 @@
+# MoCA 测试配置示例 - 使用 Qwen API 和 OH2P 硬件
+# 
+# 使用方法:
+# python3 xiaogpt.py --hardware OH2P --mute_xiaoai --use_qwen --qwen_key YOUR_QWEN_KEY --config moca_qwen_config.yaml
+# 或者将 qwen_key 填写在下面的配置中:
+# python3 xiaogpt.py --hardware OH2P --mute_xiaoai --use_qwen --config moca_qwen_config.yaml
+
+# ===== 小米设备配置 =====
+# 硬件型号 (OH2P - 小爱音箱Pro2)
+hardware: OH2P
+# 小米账号
+account: ""
+# 小米密码
+password: ""
+# 设备 DID
+mi_did: ""
+# 是否使用 command 模式
+use_command: false
+# 快速停掉小爱自己的回答
+mute_xiaoai: true
+# 详细日志
+verbose: false
+
+# ===== 通义千问(Qwen) API 配置 =====
+# Qwen API key: https://help.aliyun.com/zh/dashscope/developer-reference/api-details
+qwen_key: ""
+# 使用 Qwen 作为对话 AI
+bot: qwen
+
+# ===== 对话设置 =====
+# 基础提示词
+prompt: "请用300字以内回答"
+# 触发词列表
+keyword:
+    - "请"
+# 开始持续对话关键词
+start_conversation: "开始持续对话"
+# 结束持续对话关键词
+end_conversation: "结束持续对话"
+# 使用流式响应
+stream: true
+# GPT 选项
+gpt_options: {}
+
+# ===== MoCA 认知测试配置 =====
+# 启用 MoCA 认知测试功能
+enable_moca_test: true
+# MoCA 测试触发关键词
+moca_test_keyword: "健康每一天"
+# MoCA 测试的专业提示词
+moca_test_prompt: "你是一个专业的认知评估助手，请基于蒙特利尔认知评估量表(MoCA)进行阿兹海默症筛查测试。请逐步引导用户完成各项认知测试，包括视空间与执行功能、命名、记忆、注意力、语言、抽象思维、延迟回忆和定向力等测试项目。"
+# MoCA 测试历史保存目录
+moca_history_dir: "moca_history"
+
+# ===== TTS 设置 =====
+# 使用小米自带的 TTS
+tts: mi
+tts_options: {}
