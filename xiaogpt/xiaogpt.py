@@ -494,7 +494,9 @@ class MiGPT:
             print("-" * 20)
             print("问题：" + query + "？")
             if not self.chatbot.has_history():
-                query = f"{query},{self.config.prompt}"
+                # Use MoCA prompt if in MoCA test mode, otherwise use default prompt
+                prompt_to_use = self.config.moca_test_prompt if self.in_moca_test else self.config.prompt
+                query = f"{query},{prompt_to_use}"
             # some model can not detect the language code, so we need to add it
 
             if self.config.mute_xiaoai:
