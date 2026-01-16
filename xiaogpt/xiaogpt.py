@@ -78,7 +78,8 @@ class MiGPT:
             "test_type": "MoCA阿兹海默症认知评估",
             "trigger_keyword": self.config.moca_test_keyword,
             "conversation_history": self.moca_chat_history,
-            "total_exchanges": len(self.moca_chat_history)
+            "total_exchanges": len(self.moca_chat_history),
+            "assessment_note": "专业评估结果和得分应由医疗专业人员根据对话内容进行评定。此记录仅供参考，不作为诊断依据。"
         }
         
         # Save to file
