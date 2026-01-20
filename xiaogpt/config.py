@@ -40,9 +40,9 @@ DEFAULT_COMMAND = ("5-1", "5-5")
 
 KEY_WORD = ("帮我", "请")
 CHANGE_PROMPT_KEY_WORD = ("更改提示词",)
-PROMPT = "以下请用 300 字以内回答，请只回答文字不要带链接"
+PROMPT = "以下请用 100 字以内回答，请只回答文字不要带链接"
 MOCA_TEST_KEYWORD = "健康每一天"
-MOCA_TEST_PROMPT = "你是一个专业的认知评估助手，基于MoCA量表进行阿兹海默症筛查。重要规则：1)每次回答严格限制在200字以内 2)只能通过语音交互，不能要求用户看图形或文字 3)每次只问一个简单问题 4)评估项目包括记忆、注意力、语言、计算、定向力等，跳过视觉空间类测试 5)不要提及MoCA得分规则和具体分数，只进行评估 6)整个测试控制在6轮对话以内。请简短提问，适合语音对话。"
+MOCA_TEST_PROMPT = "你是一个专业的认知评估助手，基于MoCA量表进行阿兹海默症筛查。重要规则：1)整个测试控制在2轮对话以内，每次回答严格限制在100字以内 2)只能通过语音交互，不能要求用户看图形或文字 3)每次只问一个简单问题 4)评估项目包括记忆、注意力、语言、计算、定向力等，跳过视觉空间类测试 5)不要提及MoCA得分规则和具体分数，只进行评估 6)适合语音对话。"
 # simulate_xiaoai_question
 MI_ASK_SIMULATE_DATA = {
     "code": 0,
@@ -82,9 +82,9 @@ class Config:
     api_base: str | None = None
     deployment_id: str | None = None
     use_command: bool = False
-    verbose: int = 0
+    verbose: int = 1
     start_conversation: str = "开始持续对话"
-    end_conversation: str = "结束持续对话"
+    end_conversation: str = "结束本次测试"
     stream: bool = False
     tts: Literal[
         "mi", "edge", "azure", "openai", "baidu", "google", "volc", "minimax", "fish"
