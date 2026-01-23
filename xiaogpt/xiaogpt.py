@@ -180,19 +180,49 @@ class MiGPT:
 
     async def login_miboy(self):
         self.log.debug("正在登录小米账号...")
-        account = MiAccount(
-            self.mi_session,
-            self.config.account,
-            self.config.password,
-            str(self.mi_token_home),
-        )
-        # Forced login to refresh to refresh token
-        self.log.debug(f"使用账号: {self.config.account}")
-        await account.login("micoapi")
-        self.log.debug("小米账号登录成功")
-        self.mina_service = MiNAService(account)
-        self.miio_service = MiIOService(account)
-        self.log.debug("小米服务实例创建完成")
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                account = MiAccount(
+                    self.mi_session,
+                    self.config.account,
+                    self.config.password,
+                    str(self.mi_token_home),
+                )
+                # Forced login to refresh to refresh token
+                self.log.debug(f"使用账号: {self.config.account} (尝试 {retry_count + 1}/{max_retries})")
+                await account.login("micoapi")
+                self.log.debug("小米账号登录成功")
+                self.mina_service = MiNAService(account)
+                self.miio_service = MiIOService(account)
+                self.log.debug("小米服务实例创建完成")
+                return  # 登录成功，退出重试循环
+                
+            except KeyError as e:
+                retry_count += 1
+                if 'userId' in str(e):
+                    self.log.warning(f"登录响应缺少userId字段 (尝试 {retry_count}/{max_retries})")
+                    if retry_count < max_retries:
+                        self.log.info(f"等待5秒后重试...")
+                        await asyncio.sleep(5)
+                        continue
+                    else:
+                        self.log.error("登录失败：服务器响应异常，可能需要使用Cookie方式登录")
+                        raise Exception("小米账号登录失败，建议使用Cookie方式登录")
+                else:
+                    raise e
+                    
+            except Exception as e:
+                retry_count += 1
+                self.log.warning(f"登录失败: {str(e)} (尝试 {retry_count}/{max_retries})")
+                if retry_count < max_retries:
+                    self.log.info(f"等待5秒后重试...")
+                    await asyncio.sleep(5)
+                else:
+                    self.log.error("登录失败，已达到最大重试次数")
+                    raise Exception(f"小米账号登录失败: {str(e)}")
 
     async def _init_data_hardware(self):
         if self.config.cookie:
@@ -382,7 +412,33 @@ class MiGPT:
                     self.log.warning("查询队列已满，跳过此查询")
                     pass
         return None
+    
+    # async def do_tts(self, value):
+    #     self.log.debug(f"开始TTS播放: {value[:50]}...")
+    #     # 如果配置要求始终用 miio 命令，则直接用 miio
+    #     if self.config.use_command:
+    #         try:
+    #             await miio_command(self.miio_service, self.config.mi_did, f"{self.config.tts_command} {value}")
+    #             self.log.debug("TTS playback via miio_command success")
+    #             return
+    #         except Exception as e:
+    #             self.log.warning(f"miio_command TTS failed, try cloud fallback: {e}")
 
+    #     # 优先尝试本地 miio（如果配置允许且设备可能支持）
+    #     try:
+    #         # 这里假设 miio_service 有个 local_tts 方法，或使用 miio_command
+    #         await miio_command(self.miio_service, self.config.mi_did, f"{self.config.tts_command} {value}")
+    #         self.log.debug("TTS playback via miio_command success")
+    #         return
+    #     except Exception as e:
+    #         self.log.debug(f"local miio tts failed: {e}, fallback to mina")
+
+    #     # 云端 TTS 作为后备
+    #     try:
+    #         await self.mina_service.text_to_speech(self.device_id, value)
+    #         self.log.debug("TTS playback via mina_service success")
+    #     except Exception as e:
+    #         self.log.error(f"TTS playback failed on both miio and mina: {e}")
     async def do_tts(self, value):
         self.log.debug(f"开始TTS播放: {value[:50]}...")
         if not self.config.use_command:
@@ -520,17 +576,43 @@ class MiGPT:
 
     async def wakeup_xiaoai(self):
         self.log.debug("唤醒小爱音箱")
-        try:
-            result = await miio_command(
-                self.miio_service,
-                self.config.mi_did,
-                f"{self.config.wakeup_command} {WAKEUP_KEYWORD} 0",
-            )
-            self.log.debug("小爱音箱唤醒成功")
-            return result
-        except Exception as e:
-            self.log.error(f"小爱音箱唤醒失败: {str(e)}")
-            raise
+        max_retries = 2
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                result = await miio_command(
+                    self.miio_service,
+                    self.config.mi_did,
+                    f"{self.config.wakeup_command} {WAKEUP_KEYWORD} 0",
+                )
+                self.log.debug("小爱音箱唤醒成功")
+                return result
+            except Exception as e:
+                retry_count += 1
+                self.log.warning(f"小爱音箱唤醒失败 (尝试 {retry_count}/{max_retries}): {str(e)}")
+                
+                # 检查是否为认证错误
+                if "auth error" in str(e).lower() or "login failed" in str(e).lower():
+                    self.log.warning("检测到认证错误，尝试重新登录...")
+                    try:
+                        await self.login_miboy()
+                        self.log.info("重新登录成功，继续尝试唤醒")
+                        continue
+                    except Exception as login_error:
+                        self.log.error(f"重新登录失败: {str(login_error)}")
+                        if retry_count >= max_retries:
+                            self.log.error("小爱音箱唤醒失败，已达到最大重试次数")
+                            # 不再直接抛出异常，而是记录错误并继续运行
+                            return None
+                
+                if retry_count < max_retries:
+                    self.log.info(f"等待3秒后重试...")
+                    await asyncio.sleep(3)
+                else:
+                    self.log.error("小爱音箱唤醒失败，已达到最大重试次数")
+                    # 不再直接抛出异常，而是记录错误并继续运行
+                    return None
 
     async def run_forever(self):
         self.log.info("启动XiaoGPT主服务...")
